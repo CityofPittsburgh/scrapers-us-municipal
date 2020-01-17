@@ -11,8 +11,8 @@ from pupa.scrape import Event, Scraper
 
 class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
     BASE_URL = "http://webapi.legistar.com/v1/pittsburgh"
-    WEB_URL = "https://pittsburgh.legistar.com/"
-    EVENTSPAGE = "https://pittsburgh.legistar.com/Calendar.aspx"
+    WEB_URL = "http://pittsburgh.legistar.com/"
+    EVENTSPAGE = "http://pittsburgh.legistar.com/Calendar.aspx"
     TIMEZONE = "America/New_York"
 
     def _event_key(self, event, web_scraper):
@@ -38,6 +38,19 @@ class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
         item_title = item_title[:-1]
 
       return item_title
+
+    def get_meeting_video_link(self, link):
+        # parse the redirect URL to extract the meeting id used for the video on pittsburgh.granicus.com
+        id = link.split('ID1=')[1].split('&')[0]
+        return "http://pittsburgh.granicus.com/player/clip/{}".format(id)
+
+
+    def get_item_video_link(self, link):
+        # parse the redirect URL to extract the meeting id + item id used for the video on pittsburgh.granicus.com
+        meeting_id = link.split('ID1=')[1].split('&')[0]
+        item_id = link.split('ID2=')[1].split('&')[0]
+        return "http://pittsburgh.granicus.com/player/clip/{}?view_id=2&meta_id={}".format(meeting_id, item_id)
+
 
     def scrape(self, window=3):
         n_days_ago = datetime.datetime.utcnow() - datetime.timedelta(float(window))
@@ -103,6 +116,8 @@ class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
 
             if event["Meeting Name"] == "Post Agenda":
                 event_name = "Agenda Announcement"
+            elif event["Meeting Name"] == "City Council":
+                event_name = "Regular meeting"
             else:
                 event_name = event["Meeting Name"]
 
@@ -121,10 +136,14 @@ class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
             e.pupa_id = str(api_event["EventId"])
 
             if event["Meeting video"] != "Not\xa0available":
-                e.add_media_link(note="Recording",
-                                 url = event["Video"]["url"],
-                                 type="recording",
-                                 media_type="text/html")
+                if "url" not in event["Meeting video"]:
+                    pass
+                else:
+                    video_url = self.get_meeting_video_link(event["Meeting video"]["url"])
+                    e.add_media_link(note="Recording",
+                                     url=video_url,
+                                     type="recording",
+                                     media_type="text/html")
 
             self.addDocs(e, event, "Published agenda")
             self.addDocs(e, event, "Published minutes")
@@ -143,6 +162,15 @@ class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
                 if item["EventItemMatterFile"]:
                     identifier = item["EventItemMatterFile"]
                     agenda_item.add_bill(identifier)
+                if item["EventItemVideo"]:
+                    item_video_url = self.get_meeting_video_link(event["Meeting video"]["url"]) + \
+                                     '?view_id=2&meta_id=' + str(item["EventItemVideo"])
+                    agenda_item.add_media_link(note="Recording",
+                                               url=item_video_url,
+                                               type="recording",
+                                               media_type="text/html")
+
+
 
             participants = set()
 
