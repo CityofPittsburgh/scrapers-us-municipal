@@ -13,7 +13,7 @@ Issues with the data coming from these scrapers should be filed at the [OCD Data
 All Open Civic Data issues can be browsed and filed at [the Open Civic Data JIRA instance](https://sunlight.atlassian.net/browse/OCD/).
 
 ## Development
-Requires python3, postgresql
+Requires python3, postgresql, postgis
 
 ### Initialization
 Assuming that you want to have your database be called `opencivicdata` on your local machine
