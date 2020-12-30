@@ -9,7 +9,7 @@ from legistar.events import LegistarAPIEventScraper
 from pupa.scrape import Event, Scraper
 
 
-class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
+class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper):
     BASE_URL = "http://webapi.legistar.com/v1/pittsburgh"
     WEB_URL = "http://pittsburgh.legistar.com/"
     EVENTSPAGE = "http://pittsburgh.legistar.com/Calendar.aspx"
@@ -31,13 +31,13 @@ class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
         return key
 
     def clean_agenda_item_title(self, item_title):
-      if "PUBLIC COMMENTS" in item_title:
-        item_title = "PUBLIC COMMENTS"
+        if "PUBLIC COMMENTS" in item_title:
+            item_title = "PUBLIC COMMENTS"
 
-      if item_title.endswith(':'):
-        item_title = item_title[:-1]
+        if item_title.endswith(':'):
+            item_title = item_title[:-1]
 
-      return item_title
+        return item_title
 
     def get_meeting_video_link(self, link):
         # parse the redirect URL to extract the meeting id used for the video on pittsburgh.granicus.com
@@ -51,9 +51,10 @@ class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
         item_id = link.split('ID2=')[1].split('&')[0]
         return "http://pittsburgh.granicus.com/player/clip/{}?view_id=2&meta_id={}".format(meeting_id, item_id)
 
-
-    def scrape(self, window=3):
+    def scrape(self, window=30):
         n_days_ago = datetime.datetime.utcnow() - datetime.timedelta(float(window))
+        self.retry_wait_seconds = 20
+
         for api_event, event in self.events(n_days_ago):
 
             description = api_event["EventComment"]
@@ -106,7 +107,7 @@ class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
                     status = api_event["status"]
                 elif "room" in status_text :
                     location = status_string[1] + ", " + location
-                elif status_text in ("wrong meeting date",) :
+                elif status_text in ("wrong meeting date",):
                     continue
                 else :
                     print(status_text)
@@ -121,13 +122,13 @@ class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
             else:
                 event_name = event["Meeting Name"]
 
-            if description :
+            if description:
                 e = Event(name=event_name,
                           start_date=when,
                           description=description,
                           location_name=location,
                           status=status)
-            else :
+            else:
                 e = Event(name=event_name,
                           start_date=when,
                           location_name=location,
@@ -162,15 +163,14 @@ class PittsburghEventsScraper(LegistarAPIEventScraper, Scraper) :
                 if item["EventItemMatterFile"]:
                     identifier = item["EventItemMatterFile"]
                     agenda_item.add_bill(identifier)
-                if item["EventItemVideo"]:
+                if item["EventItemVideo"] and event["Meeting video"] != "Not\xa0available":
                     item_video_url = self.get_meeting_video_link(event["Meeting video"]["url"]) + \
                                      '?view_id=2&meta_id=' + str(item["EventItemVideo"])
+
                     agenda_item.add_media_link(note="Recording",
                                                url=item_video_url,
                                                type="recording",
                                                media_type="text/html")
-
-
 
             participants = set()
 

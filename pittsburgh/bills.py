@@ -2,18 +2,15 @@ from legistar.bills import LegistarBillScraper, LegistarAPIBillScraper
 from pupa.scrape import Bill, VoteEvent, Scraper
 from pupa.utils import _make_pseudo_id
 import datetime
-import itertools
-import pytz
-import requests
 
 
 class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
     BASE_URL = "http://webapi.legistar.com/v1/pittsburgh"
     BASE_WEB_URL = "https://pittsburgh.legistar.com"
     TIMEZONE = "America/New_York"
-    VOTE_OPTIONS = {"aye" : "yes",
-                    "no" : "no",
-                    "abstain" : "abstain",
+    VOTE_OPTIONS = {"aye": "yes",
+                    "no": "no",
+                    "abstain": "abstain",
                     "absent": "absent",
                     "out of room": "absent"}
 
@@ -45,7 +42,7 @@ class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
                 yield sponsorship
 
     def clean_org_name(self, org):
-        if (org == "City Council" or org == "Standing Committee" or "Committee on Hearings" in org):
+        if org == "City Council" or org == "Standing Committee" or "Committee on Hearings" in org:
             return "Pittsburgh City Council"
         elif "Finance" in org:
             return "Committee on Finance and Law"
@@ -61,7 +58,7 @@ class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
             action_description = action["MatterHistoryActionName"]
             responsible_org = action["MatterHistoryActionBodyName"]
 
-            action_date =  self.toTime(action_date).date()
+            action_date = self.toTime(action_date).date()
             responsible_person = None
             responsible_org = self.clean_org_name(responsible_org)
 
@@ -70,11 +67,11 @@ class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
             else:
                 ocd_classification = None
 
-            bill_action = {"description" : action_description,
-                           "date" : action_date,
-                           "organization" : {"name" : responsible_org},
+            bill_action = {"description": action_description,
+                           "date": action_date,
+                           "organization": {"name": responsible_org},
                            "classification": ocd_classification,
-                           "responsible person" : responsible_person}
+                           "responsible person": responsible_person}
 
             if bill_action != old_action:
                 old_action = bill_action
@@ -82,8 +79,8 @@ class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
                 continue
 
             if (action["MatterHistoryEventId"] is not None
-                and action["MatterHistoryRollCallFlag"] is not None
-                and action["MatterHistoryPassedFlag"] is not None):
+                    and action["MatterHistoryRollCallFlag"] is not None
+                    and action["MatterHistoryPassedFlag"] is not None):
 
                 bool_result = action["MatterHistoryPassedFlag"]
                 result = "pass" if bool_result else "fail"
@@ -94,7 +91,7 @@ class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
 
             yield bill_action, votes
 
-    def scrape(self, window=3):
+    def scrape(self, window=30):
         n_days_ago = datetime.datetime.utcnow() - datetime.timedelta(float(window))
         for matter in self.matters(n_days_ago):
             matter_id = matter["MatterId"]
@@ -147,16 +144,16 @@ class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
                 act = bill.add_action(**action)
 
                 if responsible_person:
-                     act.add_related_entity(responsible_person,
-                                            "person",
-                                            entity_id = _make_pseudo_id(name=responsible_person))
+                    act.add_related_entity(responsible_person,
+                                           "person",
+                                           entity_id=_make_pseudo_id(name=responsible_person))
 
                 if action["description"] == "Referred":
                     body_name = matter["MatterBodyName"]
                     if body_name != "City Council":
                         act.add_related_entity(body_name,
                                                "organization",
-                                               entity_id = _make_pseudo_id(name=body_name))
+                                               entity_id=_make_pseudo_id(name=body_name))
 
                 result, votes = vote
 
@@ -181,7 +178,6 @@ class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
 
                     yield vote_event
 
-
             for sponsorship in self.sponsorships(matter_id):
                 bill.add_sponsorship(**sponsorship)
 
@@ -194,7 +190,7 @@ class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
                                           attachment["MatterAttachmentHyperlink"],
                                           media_type="application/pdf")
 
-            bill.extras = {"local_classification" : matter["MatterTypeName"]}
+            bill.extras = {"local_classification": matter["MatterTypeName"]}
             text = self.text(matter_id)
 
             if text:
@@ -206,8 +202,9 @@ class PittsburghBillScraper(LegistarAPIBillScraper, Scraper):
 
             yield bill
 
+
 ACTION = {"committee report":
-              {"ocd" : None},
+              {"ocd": None},
           "interview held":
               {"ocd": None},
           "meeting held":
@@ -272,29 +269,29 @@ ACTION = {"committee report":
               {"ocd": "veto-override-failure"},
           "signed by the mayor":
               {"ocd": "executive-signature"}
-        }
+          }
 
-BILL_TYPES = {"Ordinance" : "ordinance",
-              "Resolution" : "resolution",
-              "Order" : "order",
-              "Executive Order" : "bill",
-              "Claim" : "claim",
-              "Petition" : "petition",
-              "Proclamation" : "proclamation",
+BILL_TYPES = {"Ordinance": "ordinance",
+              "Resolution": "resolution",
+              "Order": "order",
+              "Executive Order": "bill",
+              "Claim": "claim",
+              "Petition": "petition",
+              "Proclamation": "proclamation",
               "Will of Council": "proclamation",
-              "Oath of Office" : None,
-              "Communication" : None,
-              "Appointment-Informing" : "appointment",
-              "Appointment-Requiring Vote" : "appointment",
-              "Post Agenda" : None,
-              "Invoices" : None,
-              "Remarks" : None,
-              "Sister City Inventory" : None,
-              "Small Games of Chance" : None,
-              "Ceritificate of Election" : None,
-              "Transcripts - PH" : None,
-              "Transcripts - Regular Meeting" : None,
-              "Transcripts - SCM" : None,
-              "Veto Message" : None,
-              "Public Hearing" : None,
-              "Report" : None}
+              "Oath of Office": None,
+              "Communication": None,
+              "Appointment-Informing": "appointment",
+              "Appointment-Requiring Vote": "appointment",
+              "Post Agenda": None,
+              "Invoices": None,
+              "Remarks": None,
+              "Sister City Inventory": None,
+              "Small Games of Chance": None,
+              "Ceritificate of Election": None,
+              "Transcripts - PH": None,
+              "Transcripts - Regular Meeting": None,
+              "Transcripts - SCM": None,
+              "Veto Message": None,
+              "Public Hearing": None,
+              "Report": None}
